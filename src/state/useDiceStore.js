@@ -26,7 +26,7 @@ function getNumbers(diceType) {
 
 function makeDefaultFace(index, numbers, diceType) {
   const num = numbers[index]
-  const underline = diceType === 'd10' && (num === 6 || num === 9)
+  const underline = ['d10', 'd12', 'd20'].includes(diceType) && (num === 6 || num === 9)
   const text = (diceType === 'd%' && num === 0) ? '00' : String(num)
   return {
     index,
@@ -42,6 +42,8 @@ function makeDefaultFace(index, numbers, diceType) {
       mode: 'cut',
       decorator: underline ? 'underline' : 'none',
       decoratorSize: 1.0,
+      decoratorX: 0,
+      decoratorY: 0,
     }],
     svgs: [],
   }
@@ -76,6 +78,8 @@ function makeD4DefaultFaces(sizeInMM) {
         mode:  'cut',
         decorator:     'none',
         decoratorSize: 1.0,
+        decoratorX: 0,
+        decoratorY: 0,
       }
     })
     return { index: fi, texts, svgs: [] }
@@ -217,6 +221,8 @@ export const useDiceStore = create((set, get) => ({
       mode: 'cut',
       decorator: 'none',
       decoratorSize: 1.0,
+      decoratorX: 0,
+      decoratorY: 0,
     }]
     faces[faceIndex] = face
     return { faces }
@@ -298,11 +304,11 @@ export const useDiceStore = create((set, get) => ({
     if (!source) return {}
     // Copy style properties only — x, y, rot are per-entry positional values and must
     // not be overwritten (critical for D4 where each entry is placed at a specific vertex).
-    const { size, depth, mode, fontIndex, decorator, decoratorSize } = source
+    const { size, depth, mode, fontIndex, decorator, decoratorSize, decoratorX, decoratorY } = source
     const faces = state.faces.map(face => ({
       ...face,
       texts: face.texts.map(entry =>
-        entry.id === sourceEntryId ? entry : { ...entry, size, depth, mode, fontIndex, decorator, decoratorSize }
+        entry.id === sourceEntryId ? entry : { ...entry, size, depth, mode, fontIndex, decorator, decoratorSize, decoratorX, decoratorY }
       ),
     }))
     return { faces }

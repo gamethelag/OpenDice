@@ -175,8 +175,29 @@ export class ThreeScene {
     const ro = new ResizeObserver(() => this._onResize())
     ro.observe(this.canvas.parentElement || this.canvas)
 
+    const orbitRaycaster = new THREE.Raycaster()
+
     let downX = 0, downY = 0
-    this.canvas.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY })
+    this.canvas.addEventListener('pointerdown', e => {
+      downX = e.clientX
+      downY = e.clientY
+
+      // Update orbit target to the surface point under the cursor so rotation
+      // pivots around where the user is pointing rather than the die centre.
+      // Skip during animated fly-to sequences.
+      if (!this._camTargetPos && this._solidMesh) {
+        const rect = this.canvas.getBoundingClientRect()
+        const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1
+        const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1
+        orbitRaycaster.setFromCamera(new THREE.Vector2(nx, ny), this.camera)
+        const hits = orbitRaycaster.intersectObject(this._solidMesh, false)
+        if (hits.length > 0) {
+          this.controls.target.copy(hits[0].point)
+          this.controls.update()
+        }
+      }
+    })
+
     this.canvas.addEventListener('click', e => {
       const dx = e.clientX - downX
       const dy = e.clientY - downY

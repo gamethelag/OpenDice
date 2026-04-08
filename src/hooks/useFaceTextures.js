@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { renderFaceCanvas, renderBumpCanvas } from '../viewport/FaceTextureRenderer.js'
 
-export function useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFaceTextures }) {
+export function useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFaceTextures, dieColor }) {
   const timerRef = useRef(null)
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export function useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFac
         try {
           const face = faceDescriptors[fi]
           const content = faces[fi]
-          const colorCanvas = await renderFaceCanvas(face, content, loadedFonts)
+          const colorCanvas = await renderFaceCanvas(face, content, loadedFonts, dieColor)
           const bumpCanvas = await renderBumpCanvas(face, content, loadedFonts)
           updateFaceTextures(fi, colorCanvas, bumpCanvas)
         } catch (e) {
@@ -23,5 +23,5 @@ export function useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFac
     }, 80)
 
     return () => clearTimeout(timerRef.current)
-  }, [faceDescriptors, faces, loadedFonts, updateFaceTextures])
+  }, [faceDescriptors, faces, loadedFonts, updateFaceTextures, dieColor])
 }

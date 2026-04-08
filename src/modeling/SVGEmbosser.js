@@ -24,7 +24,7 @@ function dedupe(pts) {
  * Returns null if the shape cannot be built.
  */
 export function buildSVGShape(face, entry) {
-  const { svgData, scale = 1, x = 0, y = 0, rot = 0, depth = 0.4, mode = 'cut' } = entry
+  const { svgData, scale = 1, x = 0, y = 0, rot = 0, depth = 0.8, mode = 'cut' } = entry
   if (!svgData) return null
 
   const paths = extractSVGPaths(svgData)

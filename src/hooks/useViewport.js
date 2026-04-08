@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { ThreeScene } from '../viewport/ThreeScene.js'
 
-export function useViewport({ faceDescriptors, onFaceClick }) {
+export function useViewport({ faceDescriptors, classificationDescriptors, onFaceClick }) {
   const canvasRef = useRef(null)
   const sceneRef = useRef(null)
 
@@ -19,8 +19,8 @@ export function useViewport({ faceDescriptors, onFaceClick }) {
   // Re-initialize die when face descriptors change (size change)
   useEffect(() => {
     if (!sceneRef.current || !faceDescriptors?.length) return
-    sceneRef.current.setDie(faceDescriptors)
-  }, [faceDescriptors])
+    sceneRef.current.setDie(faceDescriptors, classificationDescriptors)
+  }, [faceDescriptors, classificationDescriptors])
 
   // Wire face click callback
   useEffect(() => {
@@ -56,5 +56,17 @@ export function useViewport({ faceDescriptors, onFaceClick }) {
     sceneRef.current?.setAxesVisible(v)
   }, [])
 
-  return { canvasRef, updateSolidMesh, updateFaceTextures, highlightFace, focusFace, resetView, setGridVisible, setAxesVisible }
+  const toggleBanana = useCallback(() => {
+    sceneRef.current?.toggleBanana()
+  }, [])
+
+  const getThumbnail = useCallback(() => {
+    return sceneRef.current?.getThumbnail() ?? null
+  }, [])
+
+  const setColors = useCallback((dieColor, engraveColor) => {
+    sceneRef.current?.setColors(dieColor, engraveColor)
+  }, [])
+
+  return { canvasRef, updateSolidMesh, updateFaceTextures, highlightFace, focusFace, resetView, setGridVisible, setAxesVisible, toggleBanana, getThumbnail, setColors }
 }

@@ -1,23 +1,55 @@
 import * as jscad from '@jscad/modeling'
 import * as stlSerializer from '@jscad/stl-serializer'
 import { buildD20Solid } from '../modeling/buildD20Solid.js'
+import { buildD2Solid } from '../modeling/buildD2Solid.js'
+import { buildD4Solid } from '../modeling/buildD4Solid.js'
+import { buildD6Solid } from '../modeling/buildD6Solid.js'
+import { buildD8Solid } from '../modeling/buildD8Solid.js'
+import { buildD10Solid } from '../modeling/buildD10Solid.js'
+import { buildD12Solid } from '../modeling/buildD12Solid.js'
 import { buildTextShape } from '../modeling/TextEmbosser.js'
 import { buildSVGShape } from '../modeling/SVGEmbosser.js'
+import { computeFaceDescriptors } from '../geometry/D20Geometry.js'
+import { computeD2FaceDescriptors } from '../geometry/D2Geometry.js'
+import { computeD4FaceDescriptors } from '../geometry/D4Geometry.js'
+import { computeD6FaceDescriptors } from '../geometry/D6Geometry.js'
+import { computeD8FaceDescriptors } from '../geometry/D8Geometry.js'
+import { computeD10FaceDescriptors } from '../geometry/D10Geometry.js'
+import { computeD12FaceDescriptors } from '../geometry/D12Geometry.js'
 
 const { subtract, union } = jscad.booleans
 
-export async function exportD20STL({ faceDescriptors, faces, loadedFonts, sizeInMM }) {
-  // Step 1: build the blank icosahedron
-  let solid = buildD20Solid(sizeInMM)
+function getFaceDescriptors(diceType, sizeInMM, d2Sides, d2Height, d8Height, d10Radius) {
+  if (diceType === 'd2')  return computeD2FaceDescriptors(sizeInMM, d2Sides, d2Height)
+  if (diceType === 'd4')  return computeD4FaceDescriptors(sizeInMM)
+  if (diceType === 'd6')  return computeD6FaceDescriptors(sizeInMM)
+  if (diceType === 'd8')  return computeD8FaceDescriptors(sizeInMM, d8Height)
+  if (diceType === 'd10' || diceType === 'd%') return computeD10FaceDescriptors(sizeInMM, d10Radius)
+  if (diceType === 'd12') return computeD12FaceDescriptors(sizeInMM)
+  return computeFaceDescriptors(sizeInMM)
+}
+
+function buildSolid(diceType, sizeInMM, d2Sides, d2Height, d8Height, d10Radius) {
+  if (diceType === 'd2')  return buildD2Solid(sizeInMM, d2Sides, d2Height)
+  if (diceType === 'd4')  return buildD4Solid(sizeInMM)
+  if (diceType === 'd6')  return buildD6Solid(sizeInMM)
+  if (diceType === 'd8')  return buildD8Solid(sizeInMM, d8Height)
+  if (diceType === 'd10' || diceType === 'd%') return buildD10Solid(sizeInMM, d10Radius)
+  if (diceType === 'd12') return buildD12Solid(sizeInMM)
+  return buildD20Solid(sizeInMM)
+}
+
+export async function exportDiceSTL({ faceDescriptors, faces, loadedFonts, sizeInMM, diceType, d2Sides, d2Height, d8Height, d10Radius, filename }) {
+  let solid = buildSolid(diceType, sizeInMM, d2Sides, d2Height, d8Height, d10Radius)
   console.log('[STL] blank polygons:', jscad.geometries.geom3.toPolygons(solid).length)
 
-  // Step 2: collect all per-face content shapes, separated by mode
   const cutShapes = []
   const embossShapes = []
 
-  for (let fi = 0; fi < 20; fi++) {
+  for (let fi = 0; fi < faceDescriptors.length; fi++) {
     const face = faceDescriptors[fi]
     const content = faces[fi]
+    if (!content) continue
 
     for (const entry of (content.texts || [])) {
       if (!entry.text) continue
@@ -26,8 +58,7 @@ export async function exportD20STL({ faceDescriptors, faces, loadedFonts, sizeIn
       try {
         const shape = buildTextShape(face, entry, fontObj)
         if (shape) {
-          const mode = entry.mode || 'cut'
-          if (mode === 'emboss') embossShapes.push(shape)
+          if ((entry.mode || 'cut') === 'emboss') embossShapes.push(shape)
           else cutShapes.push(shape)
         }
       } catch (e) {
@@ -40,8 +71,7 @@ export async function exportD20STL({ faceDescriptors, faces, loadedFonts, sizeIn
       try {
         const shape = buildSVGShape(face, entry)
         if (shape) {
-          const mode = entry.mode || 'cut'
-          if (mode === 'emboss') embossShapes.push(shape)
+          if ((entry.mode || 'cut') === 'emboss') embossShapes.push(shape)
           else cutShapes.push(shape)
         }
       } catch (e) {
@@ -50,39 +80,37 @@ export async function exportD20STL({ faceDescriptors, faces, loadedFonts, sizeIn
     }
   }
 
-  console.log(`[STL] cut shapes: ${cutShapes.length}, emboss shapes: ${embossShapes.length}`)
+  console.log(`[STL] cut: ${cutShapes.length}, emboss: ${embossShapes.length}`)
 
-  // Step 3: subtract each cut shape individually from the blank.
-  // Do NOT union them first — JSCAD's BSP union silently drops non-intersecting
-  // shapes when their bounding boxes happen to overlap.
   for (let i = 0; i < cutShapes.length; i++) {
-    try {
-      solid = subtract(solid, cutShapes[i])
-    } catch (e) {
-      console.warn(`[STL] subtract failed for cut shape ${i}:`, e)
-    }
+    try { solid = subtract(solid, cutShapes[i]) }
+    catch (e) { console.warn(`[STL] subtract failed shape ${i}:`, e) }
   }
-
-  // Emboss shapes are unioned onto the solid
   for (let i = 0; i < embossShapes.length; i++) {
-    try {
-      solid = union(solid, embossShapes[i])
-    } catch (e) {
-      console.warn(`[STL] union failed for emboss shape ${i}:`, e)
-    }
+    try { solid = union(solid, embossShapes[i]) }
+    catch (e) { console.warn(`[STL] union failed shape ${i}:`, e) }
   }
 
   console.log('[STL] final polygons:', jscad.geometries.geom3.toPolygons(solid).length)
 
-  // Step 4: serialize and download
   const rawData = stlSerializer.serialize({ binary: true }, solid)
   const blob = new Blob(rawData, { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `d20_${sizeInMM}mm.stl`
+  a.download = filename ?? `${diceType}_${sizeInMM}mm.stl`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+export async function exportLibraryEntries(entries, loadedFonts) {
+  for (const entry of entries) {
+    const { diceType, sizeInMM, d2Sides, d2Height, d8Height, d10Radius, faces, name } = entry
+    const faceDescriptors = getFaceDescriptors(diceType, sizeInMM, d2Sides, d2Height, d8Height, d10Radius)
+    await exportDiceSTL({ faceDescriptors, faces, loadedFonts, sizeInMM, diceType, d2Sides, d2Height, d8Height, d10Radius, filename: `${name}.stl` })
+    // small pause so browser doesn't swallow multiple simultaneous downloads
+    await new Promise(r => setTimeout(r, 200))
+  }
 }

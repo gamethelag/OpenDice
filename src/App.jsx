@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useDiceStore } from './state/useDiceStore.js'
-import { useD20Faces } from './hooks/useD20Faces.js'
+import { useDiceFaces } from './hooks/useDiceFaces.js'
 import { useViewport } from './hooks/useViewport.js'
 import { useFaceTextures } from './hooks/useFaceTextures.js'
 import { useSolidRebuild } from './hooks/useSolidRebuild.js'
-import { exportD20STL } from './export/exportSTL.js'
+import { exportDiceSTL } from './export/exportSTL.js'
 import { Layout } from './components/Layout.jsx'
 import { Header } from './components/Header.jsx'
 import { ViewportPanel } from './components/ViewportPanel.jsx'
@@ -14,54 +14,87 @@ import * as opentype from 'opentype.js'
 
 export default function App() {
   const sizeInMM = useDiceStore(s => s.sizeInMM)
+  const diceType = useDiceStore(s => s.diceType)
+  const d2Sides  = useDiceStore(s => s.d2Sides)
+  const d2Height = useDiceStore(s => s.d2Height)
+  const d8Height = useDiceStore(s => s.d8Height)
+  const d10Radius = useDiceStore(s => s.d10Radius)
   const faces = useDiceStore(s => s.faces)
   const loadedFonts = useDiceStore(s => s.loadedFonts)
   const selectedFaceIndex = useDiceStore(s => s.selectedFaceIndex)
   const setSelectedFace = useDiceStore(s => s.setSelectedFace)
   const addFont = useDiceStore(s => s.addFont)
+  const dieColor     = useDiceStore(s => s.dieColor)
+  const engraveColor = useDiceStore(s => s.engraveColor)
   const [isExporting, setIsExporting] = useState(false)
 
-  const faceDescriptors = useD20Faces(sizeInMM)
+  const { faceDescriptors, classificationDescriptors } = useDiceFaces(sizeInMM, diceType, d2Sides, d2Height, d8Height, d10Radius)
 
+  // Click the already-selected face to deselect (camera stays put)
   const handleFaceClick = useCallback((fi) => {
-    setSelectedFace(fi)
-  }, [setSelectedFace])
+    setSelectedFace(fi === selectedFaceIndex ? null : fi)
+  }, [setSelectedFace, selectedFaceIndex])
 
-  const { canvasRef, updateSolidMesh, updateFaceTextures, highlightFace, focusFace, resetView, setGridVisible, setAxesVisible } = useViewport({
+  const saveDiceToLibrary = useDiceStore(s => s.saveDiceToLibrary)
+
+  const { canvasRef, updateSolidMesh, updateFaceTextures, highlightFace, focusFace, resetView, setGridVisible, setAxesVisible, toggleBanana, getThumbnail, setColors } = useViewport({
     faceDescriptors,
+    classificationDescriptors,
     onFaceClick: handleFaceClick,
   })
+
+  useEffect(() => { setColors(dieColor, engraveColor) }, [dieColor, engraveColor, setColors])
 
   useEffect(() => {
     highlightFace(selectedFaceIndex ?? -1)
   }, [selectedFaceIndex, highlightFace])
 
-  useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFaceTextures })
+  useFaceTextures({ faceDescriptors, faces, loadedFonts, updateFaceTextures, dieColor })
 
   const { isBuilding } = useSolidRebuild({
     faceDescriptors,
     faces,
     loadedFonts,
     sizeInMM,
+    diceType,
+    d2Sides,
+    d2Height,
+    d8Height,
+    d10Radius,
     updateSolidMesh,
   })
 
-  // Auto-load default font on startup
+  // Auto-load all bundled fonts on startup
   useEffect(() => {
-    fetch('/fonts/arial.ttf')
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const font = opentype.parse(buf)
-        addFont({ name: 'Arial', data: buf, font })
-      })
-      .catch(e => console.warn('Default font load failed:', e))
+    const BUNDLED_FONTS = [
+      { name: 'Arial',                 file: 'arial.ttf' },
+      { name: 'Cinzel Regular',        file: 'Cinzel-Regular.ttf' },
+      { name: 'Cinzel Bold',           file: 'Cinzel-Bold.ttf' },
+      { name: 'Bebas Neue',            file: 'BebasNeue-Regular.ttf' },
+      { name: 'Medieval Sharp',        file: 'MedievalSharp.ttf' },
+      { name: 'Almendra Regular',      file: 'Almendra-Regular.ttf' },
+      { name: 'Almendra Bold',         file: 'Almendra-Bold.ttf' },
+      { name: 'Pirata One',            file: 'PirataOne-Regular.ttf' },
+      { name: 'Oswald Bold',           file: 'Oswald-Bold.ttf' },
+      { name: 'Permanent Marker',      file: 'PermanentMarker-Regular.ttf' },
+      { name: 'Roboto Condensed Bold', file: 'RobotoCondensed-Bold.ttf' },
+    ]
+    for (const { name, file } of BUNDLED_FONTS) {
+      fetch(`/fonts/${file}`)
+        .then(r => r.arrayBuffer())
+        .then(buf => {
+          const font = opentype.parse(buf)
+          addFont({ name, data: buf, font })
+        })
+        .catch(e => console.warn(`Font load failed (${name}):`, e))
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExport = async () => {
     if (isBuilding || isExporting) return
     setIsExporting(true)
     try {
-      await exportD20STL({ faceDescriptors, faces, loadedFonts, sizeInMM })
+      await exportDiceSTL({ faceDescriptors, faces, loadedFonts, sizeInMM, diceType, d2Sides, d2Height, d8Height, d10Radius })
     } catch (e) {
       console.error('Export failed:', e)
     } finally {
@@ -72,8 +105,8 @@ export default function App() {
   return (
     <Layout
       header={<Header onExport={handleExport} isBuilding={isBuilding} isExporting={isExporting} />}
-      controls={<ControlPanel onFocusFace={fi => focusFace(faceDescriptors[fi])} />}
-      viewport={<ViewportPanel canvasRef={canvasRef} isBuilding={isBuilding} onResetView={resetView} onSetGrid={setGridVisible} onSetAxes={setAxesVisible} />}
+      controls={<ControlPanel onFocusFace={fi => focusFace(faceDescriptors[fi])} onSaveDice={(name) => saveDiceToLibrary(name, getThumbnail())} />}
+      viewport={<ViewportPanel canvasRef={canvasRef} isBuilding={isBuilding} onResetView={resetView} onSetGrid={setGridVisible} onSetAxes={setAxesVisible} onToggleBanana={toggleBanana} />}
       editor={<FaceEditorPanel />}
     />
   )

@@ -66,7 +66,7 @@ export function getD20Vertices(sizeInMM) {
  * uBasis/vBasis are derived from projected world-up so that text orientation
  * is consistent across all faces regardless of vertex ordering.
  */
-function computeFaceMeta(vertices) {
+export function computeFaceMeta(vertices) {
   const center = [0, 0, 0]
   for (const v of vertices) {
     center[0] += v[0]; center[1] += v[1]; center[2] += v[2]

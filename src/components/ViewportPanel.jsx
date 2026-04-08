@@ -32,12 +32,14 @@ function AxesIcon() {
   )
 }
 
-export function ViewportPanel({ canvasRef, isBuilding, onResetView, onSetGrid, onSetAxes }) {
+export function ViewportPanel({ canvasRef, isBuilding, onResetView, onSetGrid, onSetAxes, onToggleBanana }) {
   const [gridOn, setGridOn] = useState(true)
   const [axesOn, setAxesOn] = useState(false)
+  const [bananaOn, setBananaOn] = useState(false)
 
-  const toggleGrid = () => { const v = !gridOn; setGridOn(v); onSetGrid?.(v) }
-  const toggleAxes = () => { const v = !axesOn; setAxesOn(v); onSetAxes?.(v) }
+  const toggleGrid   = () => { const v = !gridOn;   setGridOn(v);   onSetGrid?.(v) }
+  const toggleAxes   = () => { const v = !axesOn;   setAxesOn(v);   onSetAxes?.(v) }
+  const toggleBanana = () => { const v = !bananaOn; setBananaOn(v); onToggleBanana?.() }
 
   return (
     <div className="viewport-panel">
@@ -56,6 +58,9 @@ export function ViewportPanel({ canvasRef, isBuilding, onResetView, onSetGrid, o
         </button>
         <button className={`btn-side-icon${axesOn ? ' active' : ''}`} onClick={toggleAxes} title="Toggle world axes">
           <AxesIcon />
+        </button>
+        <button className={`btn-side-icon${bananaOn ? ' active' : ''}`} onClick={toggleBanana} title="Banana for scale">
+          🍌
         </button>
       </div>
     </div>

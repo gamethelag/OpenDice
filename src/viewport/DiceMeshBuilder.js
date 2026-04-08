@@ -117,14 +117,14 @@ export function buildFaceMesh(faces) {
   return { geometry: geo, groups }
 }
 
-export function createDiceMesh(faces) {
+export function createDiceMesh(faces, dieColor = '#FF8826') {
   const { geometry } = buildFaceMesh(faces)
 
   const canvases = faces.map(() => {
     const c = document.createElement('canvas')
     c.width = 64; c.height = 64
     const ctx = c.getContext('2d')
-    ctx.fillStyle = '#FF8826'
+    ctx.fillStyle = dieColor
     ctx.fillRect(0, 0, 64, 64)
     return c
   })

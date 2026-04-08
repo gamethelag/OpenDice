@@ -6,12 +6,10 @@ import * as opentype from 'opentype.js'
 export function TextTab({ faceIndex }) {
   const face = useDiceStore(s => s.faces[faceIndex])
   const loadedFonts = useDiceStore(s => s.loadedFonts)
-  const activeFontIndex = useDiceStore(s => s.activeFontIndex)
   const updateTextEntry = useDiceStore(s => s.updateTextEntry)
   const removeTextEntry = useDiceStore(s => s.removeTextEntry)
   const addTextEntry = useDiceStore(s => s.addTextEntry)
   const addFont = useDiceStore(s => s.addFont)
-  const setActiveFontIndex = useDiceStore(s => s.setActiveFontIndex)
   const applyTextStyleToAllFaces = useDiceStore(s => s.applyTextStyleToAllFaces)
   const fontInputRef = useRef(null)
   const [applyToAll, setApplyToAll] = useState(true)
@@ -28,7 +26,7 @@ export function TextTab({ faceIndex }) {
     try {
       const buf = await file.arrayBuffer()
       const font = opentype.parse(buf)
-      addFont({ name: file.name.replace(/\.[^.]+$/, ''), data: buf, font })
+      addFont({ name: file.name.replace(/\.[^.]+$/, ''), data: buf, font, userUploaded: true })
     } catch (e) {
       console.warn('Font load failed:', e)
     }
@@ -42,43 +40,21 @@ export function TextTab({ faceIndex }) {
 
   return (
     <div className="text-tab">
-      {/* Font section */}
-      <div className="font-section">
-        <div className="font-header">
-          <span className="sub-label">Font</span>
-          <button className="btn-sm" onClick={() => fontInputRef.current?.click()}>+ Load Font</button>
-          <input
-            ref={fontInputRef}
-            type="file"
-            accept=".ttf,.otf"
-            style={{ display: 'none' }}
-            onChange={e => handleFontFile(e.target.files[0])}
-          />
-        </div>
-        {loadedFonts.length > 0 && (
-          <div className="font-list">
-            {loadedFonts.map((f, i) => (
-              <button
-                key={i}
-                className={`font-btn${activeFontIndex === i ? ' active' : ''}`}
-                onClick={() => setActiveFontIndex(i)}
-              >
-                {f.name}
-              </button>
-            ))}
-          </div>
-        )}
-        {loadedFonts.length === 0 && (
-          <div
-            className="font-drop-zone"
-            onDrop={handleFontDrop}
-            onDragOver={e => e.preventDefault()}
-            onClick={() => fontInputRef.current?.click()}
-          >
-            Drop .ttf / .otf here
-          </div>
-        )}
-      </div>
+      <input
+        ref={fontInputRef}
+        type="file"
+        accept=".ttf,.otf"
+        style={{ display: 'none' }}
+        onChange={e => handleFontFile(e.target.files[0])}
+      />
+
+      <button
+        className={`btn-apply-all${applyToAll ? ' active' : ''}`}
+        onClick={() => setApplyToAll(v => !v)}
+        title="When on, style changes apply to every face"
+      >
+        {applyToAll ? '✓ Apply style to all faces' : 'Apply style to all faces'}
+      </button>
 
       {/* Text entries */}
       {face.texts.map((entry) => (
@@ -89,27 +65,18 @@ export function TextTab({ faceIndex }) {
           onUpdate={(updates) => handleUpdate(entry.id, updates)}
           onRemove={() => removeTextEntry(faceIndex, entry.id)}
           canRemove={face.texts.length > 1}
+          onLoadFont={() => fontInputRef.current?.click()}
         />
       ))}
 
-      <div className="entry-row" style={{ gap: '8px' }}>
-        <button className="btn-add" onClick={() => addTextEntry(faceIndex)} style={{ flex: 1 }}>
-          + Add Text
-        </button>
-        <label className="apply-all-label">
-          <input
-            type="checkbox"
-            checked={applyToAll}
-            onChange={e => setApplyToAll(e.target.checked)}
-          />
-          Apply to all
-        </label>
-      </div>
+      <button className="btn-add" onClick={() => addTextEntry(faceIndex)}>
+        + Add Text
+      </button>
     </div>
   )
 }
 
-function TextEntry({ entry, loadedFonts, onUpdate, onRemove, canRemove }) {
+function TextEntry({ entry, loadedFonts, onUpdate, onRemove, canRemove, onLoadFont }) {
   return (
     <div className="entry-card">
       <div className="entry-row">
@@ -125,17 +92,18 @@ function TextEntry({ entry, loadedFonts, onUpdate, onRemove, canRemove }) {
         )}
       </div>
 
-      {loadedFonts.length > 0 && (
-        <div className="entry-row">
-          <label className="sub-label">Font</label>
+      <div className="entry-row">
+        <label className="sub-label">Font</label>
+        {loadedFonts.length > 0 && (
           <select
             value={entry.fontIndex}
             onChange={e => onUpdate({ fontIndex: parseInt(e.target.value) })}
           >
             {loadedFonts.map((f, i) => <option key={i} value={i}>{f.name}</option>)}
           </select>
-        </div>
-      )}
+        )}
+        <button className="btn-sm" onClick={onLoadFont}>+ Load</button>
+      </div>
 
       <RangeRow label="Size" unit="mm" min={1} max={20} step={0.5} value={entry.size}
         onChange={v => onUpdate({ size: v })} />

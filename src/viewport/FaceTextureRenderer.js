@@ -1,13 +1,13 @@
 const SIZE = 512
 
-export async function renderFaceCanvas(face, content, fonts) {
+export async function renderFaceCanvas(face, content, fonts, dieColor = '#FF8826') {
   const canvas = document.createElement('canvas')
   canvas.width = SIZE
   canvas.height = SIZE
   const ctx = canvas.getContext('2d')
 
   // die body colour as background so the mesh is always opaque
-  ctx.fillStyle = '#FF8826'
+  ctx.fillStyle = dieColor
   ctx.fillRect(0, 0, SIZE, SIZE)
 
   const cx = SIZE / 2
@@ -89,11 +89,31 @@ async function drawSVGEntry(ctx, cx, cy, mmToPx, faceRadius, entry) {
     const img = new Image()
 
     img.onload = () => {
-      ctx.save()
       const drawSize = scale * faceRadius * mmToPx * 2
+      const sz = Math.ceil(drawSize) || 1
+
+      // Render SVG onto a white offscreen canvas, then treat non-white pixels
+      // as the engraving shape so SVG background colours don't bleed through.
+      const off = document.createElement('canvas')
+      off.width = sz; off.height = sz
+      const offCtx = off.getContext('2d')
+      offCtx.fillStyle = '#ffffff'
+      offCtx.fillRect(0, 0, sz, sz)
+      offCtx.drawImage(img, 0, 0, sz, sz)
+
+      const id = offCtx.getImageData(0, 0, sz, sz)
+      for (let i = 0; i < id.data.length; i += 4) {
+        const r = id.data[i], g = id.data[i+1], b = id.data[i+2], a = id.data[i+3]
+        const isBackground = (a < 20) || (r > 230 && g > 230 && b > 230)
+        id.data[i] = id.data[i+1] = id.data[i+2] = isBackground ? 255 : 0
+        id.data[i+3] = isBackground ? 0 : 255
+      }
+      offCtx.putImageData(id, 0, 0)
+
+      ctx.save()
       ctx.translate(cx + x * faceRadius * mmToPx, cy - y * faceRadius * mmToPx)
       ctx.rotate(rot * Math.PI / 180)
-      ctx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
+      ctx.drawImage(off, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
       ctx.restore()
       URL.revokeObjectURL(url)
       resolve()
@@ -130,7 +150,7 @@ export async function renderBumpCanvas(face, content, fonts) {
 }
 
 async function drawTextBump(ctx, cx, cy, mmToPx, faceRadius, entry, fonts) {
-  const { text, size = 8, x = 0, y = 0, rot = 0, fontIndex = 0, depth = 0.4, mode = 'cut' } = entry
+  const { text, size = 8, x = 0, y = 0, rot = 0, fontIndex = 0, depth = 0.8, mode = 'cut' } = entry
   const fontObj = fonts[fontIndex]
   const darkness = mode === 'emboss'
     ? Math.min(255, 128 + depth * 60)
@@ -163,7 +183,7 @@ async function drawTextBump(ctx, cx, cy, mmToPx, faceRadius, entry, fonts) {
 }
 
 async function drawSVGBump(ctx, cx, cy, mmToPx, faceRadius, entry) {
-  const { svgData, scale = 1, x = 0, y = 0, rot = 0, depth = 0.4, mode = 'cut' } = entry
+  const { svgData, scale = 1, x = 0, y = 0, rot = 0, depth = 0.8, mode = 'cut' } = entry
   const darkness = mode === 'emboss'
     ? Math.min(255, 128 + depth * 60)
     : Math.max(0, 255 - depth * 120)

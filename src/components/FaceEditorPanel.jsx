@@ -20,7 +20,7 @@ export function FaceEditorPanel() {
   return (
     <div className="editor-panel">
       <div className="editor-header">
-        <span className="editor-title">Face {selectedFaceIndex + 1}</span>
+        <span className="editor-title">{face.texts[0]?.text ? `Face ${face.texts[0].text}` : face.svgs?.length ? 'Face Graphic' : 'Face'}</span>
         <button className="btn-close" onClick={() => setSelectedFace(null)}>✕</button>
       </div>
 

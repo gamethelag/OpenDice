@@ -12,6 +12,7 @@ export class ThreeScene {
     this._solidMesh = null
     this._edgesMesh = null
     this._faces = []
+    this._classificationFaces = []
     this._highlightedFace = -1
     this._setFaceHighlight = null
     this._setFaceTexture = null
@@ -19,6 +20,9 @@ export class ThreeScene {
     this._camTargetPos = null
     this._camTargetUp = null
     this._faceOverlay = null
+    this._banana = null
+    this._dieColor = 0xFF8826
+    this._engraveColor = 0x3a2a18
 
     this._initScene()
     this._initLights()
@@ -34,7 +38,7 @@ export class ThreeScene {
     const w = this.canvas.clientWidth || 600
     const h = this.canvas.clientHeight || 400
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true })
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, preserveDrawingBuffer: true })
     this.renderer.setPixelRatio(window.devicePixelRatio)
     this.renderer.setSize(w, h, false)
     this.renderer.autoClear = false
@@ -199,20 +203,34 @@ export class ThreeScene {
     }
   }
 
-  setDie(faces) {
+  setColors(dieColorHex, engraveColorHex) {
+    this._dieColor = parseInt(dieColorHex.replace('#', ''), 16)
+    this._engraveColor = parseInt(engraveColorHex.replace('#', ''), 16)
+    if (this._solidMesh) {
+      const mats = this._solidMesh.material
+      if (Array.isArray(mats)) {
+        if (mats[0]) mats[0].color.setHex(this._dieColor)
+        if (mats[1]) mats[1].color.setHex(this._engraveColor)
+      }
+    }
+  }
+
+  setDie(faces, classificationFaces) {
     if (this._diceMeshObj) { this.scene.remove(this._diceMeshObj); this._diceMeshObj = null }
     if (this._solidMesh) { this.scene.remove(this._solidMesh); this._solidMesh = null }
     if (this._edgesMesh) { this.scene.remove(this._edgesMesh); this._edgesMesh = null }
     this._updateHighlightOverlay(-1)
 
     this._faces = faces
+    this._classificationFaces = classificationFaces ?? faces
     this._highlightedFace = -1
 
     if (!faces?.length) return
 
     // Single textured mesh — opaque face canvases show die body colour + labels.
     // Replaced by JSCAD-derived solid geometry once the CSG rebuild completes.
-    const { mesh, setFaceHighlight: _setHL, setFaceTexture, setBumpTexture } = createDiceMesh(faces)
+    const hexColor = '#' + this._dieColor.toString(16).padStart(6, '0')
+    const { mesh, setFaceHighlight: _setHL, setFaceTexture, setBumpTexture } = createDiceMesh(faces, hexColor)
     this._diceMeshObj = mesh
     this._setFaceHighlight = _setHL
     this._setFaceTexture = setFaceTexture
@@ -251,12 +269,12 @@ export class ThreeScene {
       this._solidMesh = null
     }
 
-    const geo = jscadToThreeGeometry(jscadGeom, this._faces)
+    const geo = jscadToThreeGeometry(jscadGeom, this._classificationFaces)
     geo.computeVertexNormals()
 
     const materials = [
-      new THREE.MeshStandardMaterial({ color: 0xFF8826, roughness: 0.4, metalness: 0.35, side: THREE.DoubleSide }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.7, metalness: 0.0,  side: THREE.DoubleSide }),
+      new THREE.MeshStandardMaterial({ color: this._dieColor,     roughness: 0.4, metalness: 0.35, side: THREE.DoubleSide }),
+      new THREE.MeshStandardMaterial({ color: this._engraveColor, roughness: 0.7, metalness: 0.0,  side: THREE.DoubleSide }),
     ]
     this._solidMesh = new THREE.Mesh(geo, materials)
     this.scene.add(this._solidMesh)
@@ -329,6 +347,103 @@ export class ThreeScene {
     this.camera.up.set(0, 1, 0)
     this.camera.position.copy(this.controls.target).add(new THREE.Vector3(0, size * 0.4, size * 1.8))
     this.controls.update()
+  }
+
+  toggleBanana() {
+    if (this._banana) {
+      this.scene.remove(this._banana)
+      this._banana.geometry.dispose()
+      this._banana.material.dispose()
+      this._banana = null
+      this.controls.maxDistance = 200
+      this.resetView()
+      return
+    }
+
+    // A real banana is ~180mm long, ~35mm diameter at widest
+    const spine = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0,   0,  0),
+      new THREE.Vector3(35,  14, 0),
+      new THREE.Vector3(90,  26, 0),
+      new THREE.Vector3(145, 20, 0),
+      new THREE.Vector3(180, 4,  0),
+    ])
+
+    const TUBE_SEGS = 60
+    const RAD_SEGS  = 12
+    const MAX_R     = 17
+
+    const geo = new THREE.TubeGeometry(spine, TUBE_SEGS, MAX_R, RAD_SEGS, false)
+    const pos = geo.attributes.position
+
+    // Taper both ends using sin curve; flatten slightly on the belly side
+    for (let i = 0; i <= TUBE_SEGS; i++) {
+      const t    = i / TUBE_SEGS
+      const taper = Math.pow(Math.sin(t * Math.PI), 0.55)
+      const pt   = spine.getPoint(t)
+      for (let j = 0; j <= RAD_SEGS; j++) {
+        const idx = i * (RAD_SEGS + 1) + j
+        const dx  = pos.getX(idx) - pt.x
+        const dy  = pos.getY(idx) - pt.y
+        const dz  = pos.getZ(idx) - pt.z
+        // Flatten belly (negative Y side) slightly
+        const belly = dy < 0 ? 0.75 : 1.0
+        pos.setXYZ(idx, pt.x + dx * taper * belly, pt.y + dy * taper, pt.z + dz * taper)
+      }
+    }
+    pos.needsUpdate = true
+    geo.computeVertexNormals()
+
+    // Yellow skin
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xFFE135,
+      roughness: 0.55,
+      metalness: 0.05,
+    })
+
+    this._banana = new THREE.Mesh(geo, mat)
+
+    // Stand upright (geometry runs along X → rotate so it runs along Y)
+    this._banana.rotation.z = Math.PI / 2
+
+    // Place bottom tip at grid level, offset to the right of the die
+    const dieRef = this._solidMesh || this._diceMeshObj
+    let xPos = 80
+    if (dieRef) {
+      const dieBox = new THREE.Box3().setFromObject(dieRef)
+      xPos = dieBox.max.x + MAX_R + 20  // die edge + banana radius + 20mm gap
+    }
+    // With rotation.z=PI/2, geometry origin (x=0) sits at mesh.position.
+    // Setting y = grid.position.y places the bottom tip at ground level.
+    this._banana.position.set(xPos, this._grid.position.y, 0)
+
+    this.scene.add(this._banana)
+
+    // Extend zoom range and zoom out to fit both die and banana,
+    // keeping the camera target on the die center
+    this.controls.maxDistance = 600
+
+    const box = new THREE.Box3()
+    if (this._solidMesh)   box.expandByObject(this._solidMesh)
+    if (this._diceMeshObj) box.expandByObject(this._diceMeshObj)
+    if (this._banana)      box.expandByObject(this._banana)
+    if (box.isEmpty()) return
+
+    const size = box.getSize(new THREE.Vector3()).length()
+    const fov  = this.camera.fov * (Math.PI / 180)
+    const dist = (size / 2) / Math.tan(fov / 2) * 1.3
+
+    // Pull camera back along its current direction — target stays on the die
+    const dir = this.camera.position.clone().sub(this.controls.target).normalize()
+    this._camTargetPos = this.controls.target.clone().add(dir.multiplyScalar(dist))
+    this._camTargetUp  = this.camera.up.clone()
+  }
+
+  getThumbnail(size = 128) {
+    const c = document.createElement('canvas')
+    c.width = size; c.height = size
+    c.getContext('2d').drawImage(this.renderer.domElement, 0, 0, size, size)
+    return c.toDataURL('image/png')
   }
 
   setGridVisible(v)  { if (this._grid)       this._grid.visible       = v }

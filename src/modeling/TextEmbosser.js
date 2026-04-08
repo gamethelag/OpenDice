@@ -104,7 +104,7 @@ function opentypePathToContours(path) {
 export function buildTextShape(face, entry, fontObj) {
   if (!fontObj?.font) return null
 
-  const { text, size = 8, x = 0, y = 0, rot = 0, depth = 0.4, mode = 'cut' } = entry
+  const { text, size = 8, x = 0, y = 0, rot = 0, depth = 0.8, mode = 'cut' } = entry
   const font = fontObj.font
 
   const path = font.getPath(text, 0, 0, size)

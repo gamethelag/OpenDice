@@ -68,8 +68,20 @@ html, body, #root { height: 100%; overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 16px;
-  height: 32px;
+  gap: 12px;
+  padding: 8px 24px;
+  height: 36px;
+}
+
+.app-footer__credit,
+.app-footer__disclaimer {
+  color: var(--text-muted, #888);
+  font-size: 12px;
+}
+
+.app-footer__divider {
+  color: var(--border, #444);
+  font-size: 12px;
 }
 
 .app-footer__link {
@@ -499,6 +511,14 @@ html, body, #root { height: 100%; overflow: hidden; }
   padding: 3px 6px;
   font-size: 12px;
   text-align: right;
+}
+.range-inputs input[type="number"]::-webkit-inner-spin-button,
+.range-inputs input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.range-inputs input[type="number"] {
+  -moz-appearance: textfield;
 }
 .range-inputs input[type="number"]:focus {
   outline: none;

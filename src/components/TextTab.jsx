@@ -155,9 +155,17 @@ function TextEntry({ entry, loadedFonts, onUpdate, onRemove, canRemove, onLoadFo
       </div>
 
       {(entry.decorator === 'underline' || entry.decorator === 'dot') && (
-        <RangeRow label="Dec. size" min={0.2} max={3} step={0.1}
-          value={entry.decoratorSize ?? 1.0}
-          onChange={v => onUpdate({ decoratorSize: v })} />
+        <>
+          <RangeRow label="Dec. size" min={0.2} max={3} step={0.1}
+            value={entry.decoratorSize ?? 1.0}
+            onChange={v => onUpdate({ decoratorSize: v })} />
+          <RangeRow label="Dec. X" unit="mm" min={-10} max={10} step={0.1}
+            value={entry.decoratorX ?? 0}
+            onChange={v => onUpdate({ decoratorX: v })} />
+          <RangeRow label="Dec. Y" unit="mm" min={-10} max={10} step={0.1}
+            value={entry.decoratorY ?? 0}
+            onChange={v => onUpdate({ decoratorY: v })} />
+        </>
       )}
     </div>
   )

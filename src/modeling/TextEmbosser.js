@@ -191,6 +191,8 @@ export function buildTextShape(face, entry, fontObj) {
   const decorator = entry.decorator || 'none'
   if (decorator !== 'none') {
     const decoratorSize = entry.decoratorSize ?? 1.0
+    const decoratorX = entry.decoratorX ?? 0
+    const decoratorY = entry.decoratorY ?? 0
     // bbox in original opentype SVG coords (Y-down screen space)
     const x1 = bbox.x1, y1 = bbox.y1, x2 = bbox.x2, y2 = bbox.y2
     // In JSCAD 2D after Y-flip: text spans x in [x1-cx, x2-cx], y in [cy-y2, cy-y1]
@@ -204,18 +206,18 @@ export function buildTextShape(face, entry, fontObj) {
         const ulW = textW * decoratorSize
         const ulH = Math.max(0.3, textH * 0.07)
         const ulGap = textH * 0.05
-        const ulY0 = jscadBottom - ulGap - ulH
-        const ulY1 = jscadBottom - ulGap
-        const ulX0 = -ulW / 2
-        const ulX1 =  ulW / 2
+        const ulY0 = jscadBottom - ulGap - ulH + decoratorY
+        const ulY1 = jscadBottom - ulGap + decoratorY
+        const ulX0 = -ulW / 2 + decoratorX
+        const ulX1 =  ulW / 2 + decoratorX
         // CCW rectangle (Y-up): bottom-left → bottom-right → top-right → top-left
         const pts = [[ulX0, ulY0], [ulX1, ulY0], [ulX1, ulY1], [ulX0, ulY1]]
         const g2 = geom2.fromPoints(pts)
         decShape = extrudeLinear({ height: depth + 0.2 }, g2)
       } else if (decorator === 'dot') {
         const r2 = Math.max(0.3, textH * 0.08) * decoratorSize
-        const dotX = (x2 - cx) + r2 * 2
-        const dotY = jscadBottom + r2
+        const dotX = (x2 - cx) + r2 * 2 + decoratorX
+        const dotY = jscadBottom + r2 + decoratorY
         // Octagon approximation for circle
         const pts = Array.from({ length: 8 }, (_, i) => {
           const a = (i / 8) * Math.PI * 2

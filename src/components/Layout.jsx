@@ -6,6 +6,8 @@ export function Layout({ header, controls, viewport, editor }) {
       <div className="app-viewport">{viewport}</div>
       <div className="app-editor">{editor}</div>
       <footer className="app-footer">
+        <span className="app-footer__credit">Made by Nicholas Manning</span>
+        <span className="app-footer__divider">·</span>
         <a
           href="https://github.com/gamethelag/dice_stl_maker"
           target="_blank"
@@ -23,6 +25,8 @@ export function Layout({ header, controls, viewport, editor }) {
           </svg>
           View on GitHub
         </a>
+        <span className="app-footer__divider">·</span>
+        <span className="app-footer__disclaimer">Built using Generative AI</span>
       </footer>
     </div>
   )
